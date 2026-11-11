@@ -1,0 +1,29 @@
+# Koyun Chat 一键部署
+#   1. cp .env.example .env 并按说明填写
+#   2. docker compose up -d
+#   3. docker compose exec -u koyun koyunchat koyunchat -admin-email 你的邮箱 -admin-pass 你的密码   # 创建管理员
+#   4. docker compose logs koyunchat | grep "console at"   # 查看管理后台地址
+services:
+  koyunchat:
+    image: ${KC_IMAGE:-ghcr.io/xiaofujie369/koyunchat:latest}
+    build: .
+    container_name: koyunchat
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${KC_BIND:-127.0.0.1}:${KC_PORT:-8790}:8790"
+    volumes:
+      - ./data:/data
+
+  # 可选：自带 HTTPS（自动申请证书）。启用：docker compose --profile caddy up -d
+  # 需要先在 .env 填 KC_CONSOLE_DOMAIN 和 KC_API_DOMAIN，并把两个域名解析到这台服务器
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["caddy"]
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    env_file: .env
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
+    depends_on: [koyunchat]

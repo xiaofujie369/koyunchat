@@ -1,0 +1,10 @@
+# 后台 + 客户社区
+{$KC_CONSOLE_DOMAIN} {
+	encode gzip
+	reverse_proxy koyunchat:8790
+}
+# 访客挂件、WebSocket、接口
+{$KC_API_DOMAIN} {
+	encode gzip
+	reverse_proxy koyunchat:8790
+}

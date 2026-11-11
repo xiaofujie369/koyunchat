@@ -1,0 +1,15 @@
+/* 配色和管理后台一致 */
+:root {
+  --bg: #f7f5f0; --side: #efebe3; --card: #fff; --line: #e6e1d7; --ink: #211f1c; --sub: #6f695f; --faint: #a39d92;
+  --accent: #7c6bd6; --accent-soft: #efebfb; --mine: #7c6bd6; --other: #fff; --ok: #2f9e6b; --warn: #c98a1c; --bad: #d1453b;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #171614; --side: #1f1d1a; --card: #222019; --line: #36322c; --ink: #ece8e1; --sub: #a8a196; --faint: #7b756b;
+    --accent: #9d8ff0; --accent-soft: #2c2740; --mine: #6f5fd0; --other: #2a2723; }
+}
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+button { font: inherit; }
+::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }

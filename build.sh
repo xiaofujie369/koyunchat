@@ -23,11 +23,14 @@ fi
 ENV_CMD=${BUILD_GO_ENV:+source $BUILD_GO_ENV && }
 
 echo "==> 同步源码到编译机"
-"${SSH[@]}" "$BUILD_HOST" "mkdir -p $BUILD_DIR/server"
-rsync -az --delete -e "${SSH[*]}" "$HERE/server/" "$BUILD_HOST:$BUILD_DIR/server/"
+"${SSH[@]}" "$BUILD_HOST" "mkdir -p $BUILD_DIR/src"
+rsync -az --delete --exclude node_modules --exclude 'backend/web/admin/*' --exclude 'backend/web/user/*' --exclude data --exclude data-dev --exclude .git \
+  --exclude koyunchat --exclude build.env -e "${SSH[*]}" "$HERE/" "$BUILD_HOST:$BUILD_DIR/src/"
 
-echo "==> 在编译机上编译（低优先级）"
-"${SSH[@]}" "$BUILD_HOST" "${ENV_CMD}cd $BUILD_DIR/server && export GOTOOLCHAIN=local CGO_ENABLED=0 && \
+echo "==> 在编译机上编译（低优先级）：先编译两个前端，再编译 Go 程序"
+"${SSH[@]}" "$BUILD_HOST" "${ENV_CMD}cd $BUILD_DIR/src/admin && (npm ci --no-audit --no-fund --loglevel=error || npm install --no-audit --no-fund --loglevel=error) && \
+  nice -n 10 npm run build && cd $BUILD_DIR/src/user && (npm ci --no-audit --no-fund --loglevel=error || npm install --no-audit --no-fund --loglevel=error) && \
+  nice -n 10 npm run build && cd $BUILD_DIR/src/backend && export GOTOOLCHAIN=local CGO_ENABLED=0 && \
   nice -n 10 go vet . && nice -n 10 go build -trimpath -ldflags '-s -w' -o $BUILD_DIR/koyunchat . && sha256sum $BUILD_DIR/koyunchat"
 
 echo "==> 取回程序"

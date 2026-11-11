@@ -28,9 +28,10 @@ var (
 )
 
 func main() {
-	addr := flag.String("addr", "127.0.0.1:8790", "listen address")
-	flag.StringVar(&dataDir, "data", "/opt/tawk/data", "data directory")
-	flag.StringVar(&apiURL, "api-url", "", "public base URL used in embed code, e.g. https://chatapi.example.com")
+	// 参数也可以用环境变量设置（Docker 部署时用）：KC_ADDR / KC_DATA / KC_API_URL
+	addr := flag.String("addr", envOr("KC_ADDR", "127.0.0.1:8790"), "listen address (env KC_ADDR)")
+	flag.StringVar(&dataDir, "data", envOr("KC_DATA", "/opt/tawk/data"), "data directory (env KC_DATA)")
+	flag.StringVar(&apiURL, "api-url", os.Getenv("KC_API_URL"), "public base URL used in embed code, e.g. https://chatapi.example.com (env KC_API_URL)")
 	adminEmail := flag.String("admin-email", "", "create/reset admin account with this email")
 	adminPass := flag.String("admin-pass", "", "password for -admin-email")
 	flag.Parse()
@@ -94,6 +95,31 @@ func registerRoutes(mux *http.ServeMux) {
 	web := webSub()
 	static := http.FileServer(http.FS(web))
 	mux.Handle("GET /app/", noCache(static))
+	// 新版管理面板（React）：/admin/assets/ 下的文件名带内容哈希，可以长期缓存
+	mux.HandleFunc("GET /admin/assets/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") { // 不列目录
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		static.ServeHTTP(w, r)
+	})
+	// 新版客户社区（Vue）的静态资源
+	mux.HandleFunc("GET /user/assets/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") { // 不列目录
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		static.ServeHTTP(w, r)
+	})
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if err := db.Ping(); err != nil {
+			http.Error(w, "db error", http.StatusServiceUnavailable)
+			return
+		}
+		w.Write([]byte("ok"))
+	})
 	mux.Handle("GET /vendor/", noCache(static))
 	mux.HandleFunc("GET /widget.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -105,10 +131,17 @@ func registerRoutes(mux *http.ServeMux) {
 		w.Header().Set("Cache-Control", "no-cache")
 		switch strings.Trim(r.URL.Path, "/") {
 		case "":
-			serveIndex(w, "c/index.html")
+			serveUser(w)
 		case adminPath:
 			if !strings.HasSuffix(r.URL.Path, "/") {
 				http.Redirect(w, r, "/"+adminPath+"/", http.StatusFound)
+				return
+			}
+			serveAdmin(w)
+		case adminPath + "/legacy":
+			// 旧版管理面板，新版稳定前保留作对照和备用
+			if !strings.HasSuffix(r.URL.Path, "/") {
+				http.Redirect(w, r, "/"+adminPath+"/legacy/", http.StatusFound)
 				return
 			}
 			serveIndex(w, "index.html")
@@ -201,6 +234,37 @@ func serveIndex(w http.ResponseWriter, name string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Write([]byte(html))
+}
+
+// serveUser 返回新版客户社区；没有编译前端时退回旧版
+func serveUser(w http.ResponseWriter) {
+	b, err := fs.ReadFile(webSub(), "user/index.html")
+	if err != nil {
+		serveIndex(w, "c/index.html")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write(b)
+}
+
+// serveAdmin 返回新版管理面板；没有编译前端时退回旧版
+func serveAdmin(w http.ResponseWriter) {
+	b, err := fs.ReadFile(webSub(), "admin/index.html")
+	if err != nil {
+		serveIndex(w, "index.html")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write(b)
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
 
 func noCache(h http.Handler) http.Handler {

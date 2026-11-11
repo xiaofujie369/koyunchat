@@ -17,3 +17,10 @@ build.env
 # 其他本地目录
 xbord_chanjian/
 *.log
+# 前端编译产物（Docker 构建 / build.sh 时自动生成）
+backend/web/admin/*
+!backend/web/admin/.gitkeep
+backend/web/user/*
+!backend/web/user/.gitkeep
+node_modules/
+*.tsbuildinfo

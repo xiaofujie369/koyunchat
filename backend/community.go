@@ -1091,6 +1091,10 @@ func registerCommunityRoutes(mux *http.ServeMux) {
 		w.Header().Set("Cache-Control", "no-cache")
 		p := strings.TrimPrefix(r.URL.Path, "/c/")
 		if p == "" || p == "index.html" {
+			serveUser(w)
+			return
+		}
+		if p == "legacy" || p == "legacy/" { // 旧版客户社区，新版稳定前保留
 			serveIndex(w, "c/index.html")
 			return
 		}

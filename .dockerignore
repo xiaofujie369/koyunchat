@@ -1,0 +1,11 @@
+.git
+data
+data-dev
+koyunchat
+build.env
+**/node_modules
+backend/web/admin/*
+!backend/web/admin/.gitkeep
+backend/web/user/*
+!backend/web/user/.gitkeep
+xbord_chanjian
