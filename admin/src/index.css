@@ -31,6 +31,7 @@
   --bubble-visitor: #f1eee8;
   --bubble-note: #fbf2df;
   --bubble-ai: #efebfb;
+  --chart: #7c6bd6;
   --radius: 12px;
 }
 
@@ -57,6 +58,7 @@
     --bubble-visitor: #2c2924;
     --bubble-note: #3a3420;
     --bubble-ai: #2c2740;
+    --chart: #9283ec;
   }
 }
 :root[data-theme='dark'] {
@@ -81,6 +83,7 @@
   --bubble-visitor: #2c2924;
   --bubble-note: #3a3420;
   --bubble-ai: #2c2740;
+  --chart: #9283ec;
 }
 
 @theme inline {
@@ -111,6 +114,7 @@
   --color-bubble-visitor: var(--bubble-visitor);
   --color-bubble-note: var(--bubble-note);
   --color-bubble-ai: var(--bubble-ai);
+  --color-chart: var(--chart);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

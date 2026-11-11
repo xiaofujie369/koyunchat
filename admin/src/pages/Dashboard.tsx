@@ -1,68 +1,178 @@
 import * as React from 'react'
+import { BellDot, Bot, Inbox, MessageSquareText, MessagesSquare, Smile, TrendingDown, TrendingUp, UserCheck, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardBody, CardHeader, Stat } from '@/components/ui/card'
+import { Card, CardBody, CardHeader, Empty } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { NativeSelect } from '@/components/ui/input'
+import { Table, Td, Th, Tr } from '@/components/ui/table'
+import AreaChart from '@/components/AreaChart'
 import { Avatar } from '@/components/common'
 import { useStore } from '@/lib/store'
 import { api, errMsg } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import type { Row } from '@/lib/types'
 
+const METRICS = [['conversations', '会话数'], ['visitors', '访客数'], ['messages', '消息数']] as const
+type Metric = (typeof METRICS)[number][0]
+
+// 环比：和昨天 / 上月同期比
+function Trend({ cur, prev, vs }: { cur: number; prev: number; vs: string }) {
+  if (!prev && !cur) return <span className="text-faint">{vs}都没有数据</span>
+  if (!prev) return <span className="text-faint">{vs}为 0</span>
+  const p = ((cur - prev) / prev) * 100
+  if (Math.abs(p) < 0.05) return <span className="text-faint">与{vs}持平</span>
+  const up = p > 0
+  const Icon = up ? TrendingUp : TrendingDown
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon className={cn('size-3.5', up ? 'text-ok' : 'text-bad')} />
+      <span className={cn('font-medium tabular-nums', up ? 'text-ok' : 'text-bad')}>{up ? '+' : ''}{p.toFixed(1)}%</span>
+      <span className="text-faint">较{vs}</span>
+    </span>
+  )
+}
+
+function StatCard({ title, icon, value, sub, highlight }: { title: string; icon: React.ReactNode; value: React.ReactNode; sub: React.ReactNode; highlight?: boolean }) {
+  return (
+    <Card className={cn('px-3.5 py-3 sm:px-5 sm:py-4', highlight && 'border-warn/50')}>
+      <div className="flex items-start justify-between gap-2"><span className="text-[13px] font-medium text-muted-foreground">{title}</span><span className="text-faint [&_svg]:size-[18px]">{icon}</span></div>
+      <div className="mt-2 text-[22px] leading-tight font-bold tabular-nums sm:text-[28px]">{value}</div>
+      <div className="mt-1 text-xs">{sub}</div>
+    </Card>
+  )
+}
+
+function fmtMs(ms: number) {
+  if (!ms) return '—'
+  const s = Math.round(ms / 1000)
+  if (s < 60) return s + ' 秒'
+  if (s < 3600) return Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒'
+  return (s / 3600).toFixed(1) + ' 小时'
+}
+
+// 排行条：单一颜色表示多少，数字写在条旁边
+function BarList({ rows, empty }: { rows: Row[]; empty: string }) {
+  const max = Math.max(1, ...rows.map(r => r.n))
+  const total = rows.reduce((a, r) => a + r.n, 0) || 1
+  if (!rows.length || !rows.some(r => r.n)) return <Empty className="py-6">{empty}</Empty>
+  return (
+    <div className="space-y-2.5">
+      {rows.map(r => (
+        <div key={r.name} className="flex items-center gap-3 text-[13px]">
+          <span className="w-24 shrink-0 truncate" title={r.name}>{r.name}</span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-chart" style={{ width: (r.n / max) * 100 + '%' }} /></div>
+          <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{r.n}（{Math.round((r.n / total) * 100)}%）</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Dashboard() {
-  const { live, users } = useStore()
-  const [st, setSt] = React.useState<Row>({})
-  React.useEffect(() => { api('GET', '/api/stats').then(setSt).catch(e => toast.error(errMsg(e))) }, [])
-  const days: Row[] = st.days || []
-  const max = Math.max(1, ...days.map(d => Math.max(d.conversations, d.visitors)))
-  const online = users.filter(u => u.online)
+  const live = useStore(s => s.live)
+  const [days, setDays] = React.useState(30)
+  const [metric, setMetric] = React.useState<Metric>('conversations')
+  const [table, setTable] = React.useState(false)
+  const [d, setD] = React.useState<Row | null>(null)
+  const load = React.useCallback(async () => {
+    try { setD(await api('GET', `/api/stats/overview?days=${days}&tz=${-new Date().getTimezoneOffset()}`)) } catch (e) { toast.error(errMsg(e)) }
+  }, [days])
+  React.useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t) }, [load])
+
+  if (!d) return <div className="py-20 text-center text-sm text-faint">加载统计数据…</div>
+  const c = d.cards, s = d.summary
+  const series: Row[] = d.series
+  const metricName = METRICS.find(m => m[0] === metric)![1]
+  const points = series.map(x => ({ label: x.date, value: x[metric], extra: metric === 'messages' ? `其中 AI 回复 ${x.ai}` : undefined }))
+  const replies = s.agent_replies + s.ai_replies
+  const onlineNow = Object.keys(live).length
+
   return (
     <div className="space-y-4">
-      <p className="text-[13px] text-muted-foreground">实时数据，WebSocket 推送。</p>
-      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        <Stat k="在线访客" v={Object.keys(live).length} s="实时" />
-        <Stat k="进行中会话" v={st.open || 0} s={'未分配 ' + (st.unassigned || 0)} />
-        <Stat k="今日会话" v={st.today_conversations || 0} s={`消息 ${st.today_messages || 0} · AI 回复 ${st.today_ai || 0}`} />
-        <Stat k="满意度" v={st.avg_rating ? st.avg_rating.toFixed(1) : '—'} s={`在线客服 ${online.length} 人`} />
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 xl:grid-cols-4">
+        <StatCard title="今日会话" icon={<MessagesSquare />} value={c.today_convs} sub={<Trend cur={c.today_convs} prev={c.yesterday_convs} vs="昨天同一时间" />} />
+        <StatCard title="本月会话" icon={<MessageSquareText />} value={c.month_convs} sub={<Trend cur={c.month_convs} prev={c.last_month_convs} vs="上月同期" />} />
+        <StatCard title="待接待" icon={<Inbox />} value={c.unassigned} highlight={c.unassigned > 0}
+          sub={<span className="text-muted-foreground">进行中 {c.open} 个{c.unassigned > 0 && <>，<a href="#/inbox">有会话还没人接</a></>}</span>} />
+        <StatCard title="未读消息" icon={<BellDot />} value={c.unread} highlight={c.unread > 0}
+          sub={<span className="text-muted-foreground">{c.unread ? `分布在 ${c.unread_convs} 个会话里` : '全部已读'}</span>} />
+        <StatCard title="今日访客" icon={<Users />} value={c.today_visitors} sub={<Trend cur={c.today_visitors} prev={c.yesterday_visitors} vs="昨天同一时间" />} />
+        <StatCard title="访客总数" icon={<UserCheck />} value={c.visitors_total} sub={<span className="text-muted-foreground">当前在线 {onlineNow} 人 · 在线客服 {c.online_agents} 人</span>} />
+        <StatCard title="今日消息" icon={<Bot />} value={c.today_msgs} sub={<span className="inline-flex flex-wrap items-center gap-x-2"><Trend cur={c.today_msgs} prev={c.yesterday_msgs} vs="昨天" /><span className="text-faint">AI 回复 {c.today_ai}</span></span>} />
+        <StatCard title="本月满意度" icon={<Smile />} value={c.rated_month ? c.rating_month.toFixed(1) + ' / 5' : '—'}
+          sub={<span className="text-muted-foreground">{c.rated_month ? `${c.rated_month} 次评分` : '本月还没有评分'}{c.rating_all ? ` · 历史平均 ${c.rating_all.toFixed(1)}` : ''}</span>} />
       </div>
-      <div className="grid gap-3.5 lg:grid-cols-2">
-        <Card>
-          <CardHeader>近 7 天<span className="flex-1" /><Badge tone="accent">会话</Badge><Badge>访客</Badge></CardHeader>
-          <CardBody>
-            <div className="flex h-44 items-end gap-3">
-              {days.map(d => (
-                <div key={d.date} className="flex flex-1 flex-col items-center gap-1.5">
-                  <div className="flex h-36 w-full items-end justify-center gap-1">
-                    <div className="w-1/3 max-w-4 rounded-t bg-accent" style={{ height: (d.conversations / max) * 100 + '%' }} title={'会话 ' + d.conversations} />
-                    <div className="w-1/3 max-w-4 rounded-t bg-border" style={{ height: (d.visitors / max) * 100 + '%' }} title={'访客 ' + d.visitors} />
-                  </div>
-                  <div className="text-[11px] text-faint">{d.date}</div>
-                </div>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardHeader>团队成员</CardHeader>
-          <CardBody className="space-y-3">
-            {users.map(u => (
-              <div key={u.id} className="flex items-center gap-3">
-                <Avatar name={u.name} online={!!u.online} size="sm" />
-                <div className="min-w-0 flex-1"><div className="flex items-center gap-1.5">{u.name}{u.role === 'admin' && <Badge>管理员</Badge>}</div><div className="truncate text-xs text-faint">{u.email}</div></div>
-                <span className={u.online ? 'text-xs text-ok' : 'text-xs text-faint'}>{u.online ? '在线' : '离线'}</span>
-              </div>
-            ))}
-          </CardBody>
-        </Card>
-      </div>
+
       <Card>
-        <CardHeader>接入指引</CardHeader>
-        <CardBody>
-          <ol className="list-decimal space-y-1.5 pl-5 text-[13px] text-muted-foreground">
-            <li>在 <a href="#/sites">站点管理</a> 创建站点，复制嵌入代码，放到网站页面的 &lt;/body&gt; 前（Xboard：后台 → 主题配置 → 自定义页脚 HTML）。</li>
-            <li>在 <a href="#/settings">系统设置</a> 填入 AI 接口和 Key，即可使用 AI 自动接待、回复建议、润色翻译和会话总结。</li>
-            <li>在 <a href="#/agents">客服成员</a> 添加同事账号，在 <a href="#/team">团队协作</a> 里建立私人群组、私信沟通；群聊里 @AI 可以召唤 AI 助手。</li>
-          </ol>
+        <div className="flex flex-wrap items-start gap-3 px-5 pt-4">
+          <div className="flex-1">
+            <div className="text-[15px] font-semibold">数据概览</div>
+            <div className="text-xs text-faint">{s.from} 至 {s.to}</div>
+          </div>
+          <NativeSelect className="w-28" value={days} onChange={e => setDays(Number(e.target.value))}>
+            <option value={7}>近 7 天</option><option value={30}>近 30 天</option><option value={90}>近 90 天</option>
+          </NativeSelect>
+          <div className="flex rounded-lg bg-muted p-0.5" role="tablist" aria-label="选择指标">
+            {METRICS.map(([k, t]) => (
+              <button key={k} role="tab" aria-selected={metric === k} onClick={() => setMetric(k)}
+                className={cn('cursor-pointer rounded-md px-3 py-1.5 text-[13px]', metric === k ? 'bg-card font-semibold shadow-sm' : 'text-muted-foreground')}>{t}</button>
+            ))}
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => setTable(v => !v)}>{table ? '看图表' : '看表格'}</Button>
+        </div>
+        <div className="grid grid-cols-2 gap-4 px-5 pt-4 pb-1 lg:grid-cols-4">
+          <div><div className="text-xs text-muted-foreground">区间{metricName}</div><div className="text-2xl font-bold tabular-nums">{s[metric]}</div>
+            <div className="text-xs text-faint">日均 {(s[metric] / d.days).toFixed(1)}</div></div>
+          <div><div className="text-xs text-muted-foreground">回复（客服 / AI）</div><div className="text-2xl font-bold tabular-nums">{s.agent_replies} <span className="text-base font-medium text-faint">/ {s.ai_replies}</span></div>
+            <div className="text-xs text-faint">AI 占比 {replies ? Math.round((s.ai_replies / replies) * 100) : 0}%</div></div>
+          <div><div className="text-xs text-muted-foreground">平均首次响应</div><div className="text-2xl font-bold tabular-nums">{fmtMs(s.first_response_ms)}</div>
+            <div className="text-xs text-faint">访客发消息到第一条回复，{s.responded} 个会话</div></div>
+          <div><div className="text-xs text-muted-foreground">区间满意度</div><div className="text-2xl font-bold tabular-nums">{s.rated ? s.rating.toFixed(1) : '—'}</div>
+            <div className="text-xs text-faint">{s.rated} 次评分，共 {s.conversations} 个会话</div></div>
+        </div>
+        <CardBody className="pt-2">
+          {table ? (
+            <div className="max-h-[300px] overflow-y-auto">
+              <Table>
+                <thead><tr><Th>日期</Th><Th className="text-right">会话</Th><Th className="text-right">访客</Th><Th className="text-right">消息</Th><Th className="text-right">AI 回复</Th></tr></thead>
+                <tbody>{[...series].reverse().map(x => (
+                  <Tr key={x.date}><Td>{x.date}</Td><Td className="text-right tabular-nums">{x.conversations}</Td><Td className="text-right tabular-nums">{x.visitors}</Td><Td className="text-right tabular-nums">{x.messages}</Td><Td className="text-right tabular-nums">{x.ai}</Td></Tr>
+                ))}</tbody>
+              </Table>
+            </div>
+          ) : <AreaChart data={points} name={metricName} />}
         </CardBody>
       </Card>
+
+      <div className="grid gap-3.5 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <CardHeader>客服工作量<span className="text-xs font-normal text-faint">近 {d.days} 天</span></CardHeader>
+          <Table>
+            <thead><tr><Th>客服</Th><Th className="text-right">接待会话</Th><Th className="text-right">回复消息</Th><Th className="text-right">平均评分</Th><Th className="text-right">当前进行中</Th></tr></thead>
+            <tbody>{(d.agents as Row[]).map(a => (
+              <Tr key={a.id}>
+                <Td><div className="flex items-center gap-2.5"><Avatar name={a.name} online={!!a.online} size="sm" />{a.name}{a.role === 'admin' && <Badge>管理员</Badge>}</div></Td>
+                <Td className="text-right tabular-nums">{a.conversations}</Td><Td className="text-right tabular-nums">{a.replies}</Td>
+                <Td className="text-right tabular-nums">{a.rating ? a.rating.toFixed(1) : '—'}</Td><Td className="text-right tabular-nums">{a.open_now}</Td>
+              </Tr>
+            ))}</tbody>
+          </Table>
+        </Card>
+        <Card><CardHeader>站点会话分布<span className="text-xs font-normal text-faint">近 {d.days} 天</span></CardHeader><CardBody><BarList rows={d.sites} empty="还没有会话" /></CardBody></Card>
+        <Card><CardHeader>访客地区</CardHeader><CardBody><BarList rows={d.countries} empty="还没有访客" /></CardBody></Card>
+        <Card><CardHeader>访客来源</CardHeader><CardBody><BarList rows={d.referrers} empty="还没有访客" /></CardBody></Card>
+        <Card>
+          <CardHeader>接入指引</CardHeader>
+          <CardBody>
+            <ol className="list-decimal space-y-1.5 pl-5 text-[13px] text-muted-foreground">
+              <li>在 <a href="#/sites">站点管理</a> 创建站点，复制嵌入代码，放到网站页面的 &lt;/body&gt; 前。</li>
+              <li>在 <a href="#/settings">系统设置</a> 填入 AI 接口和 Key，开启 AI 接待和回复建议。</li>
+              <li>在 <a href="#/agents">客服成员</a> 添加同事，在 <a href="#/team">团队协作</a> 里沟通。</li>
+            </ol>
+          </CardBody>
+        </Card>
+      </div>
     </div>
   )
 }

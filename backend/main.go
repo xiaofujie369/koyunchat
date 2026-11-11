@@ -91,6 +91,7 @@ func registerRoutes(mux *http.ServeMux) {
 	registerCommunityRoutes(mux)
 	registerSoundRoutes(mux)
 	registerPluginRoutes(mux)
+	registerStatsRoutes(mux)
 	mux.HandleFunc("GET /api/telegram/status", admin(tgStatusHandler))
 	web := webSub()
 	static := http.FileServer(http.FS(web))
