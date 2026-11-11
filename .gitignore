@@ -24,3 +24,8 @@ backend/web/user/*
 !backend/web/user/.gitkeep
 node_modules/
 *.tsbuildinfo
+
+# 本地参考截图等，不上传
+*.png
+!admin/public/*.png
+!user/public/*.png
