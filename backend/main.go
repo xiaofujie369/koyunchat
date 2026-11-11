@@ -30,7 +30,7 @@ var (
 func main() {
 	// 参数也可以用环境变量设置（Docker 部署时用）：KC_ADDR / KC_DATA / KC_API_URL
 	addr := flag.String("addr", envOr("KC_ADDR", "127.0.0.1:8790"), "listen address (env KC_ADDR)")
-	flag.StringVar(&dataDir, "data", envOr("KC_DATA", "/opt/tawk/data"), "data directory (env KC_DATA)")
+	flag.StringVar(&dataDir, "data", envOr("KC_DATA", "./data"), "data directory (env KC_DATA)")
 	flag.StringVar(&apiURL, "api-url", os.Getenv("KC_API_URL"), "public base URL used in embed code, e.g. https://chatapi.example.com (env KC_API_URL)")
 	adminEmail := flag.String("admin-email", "", "create/reset admin account with this email")
 	adminPass := flag.String("admin-pass", "", "password for -admin-email")
