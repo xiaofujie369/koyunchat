@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Bell, Bot, Send, Upload } from 'lucide-react'
+import { BarChart3, Bell, Bot, Send, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ export default function Settings() {
       <SoundSection />
       <AISection f={f} setF={setF} />
       <TelegramSection f={f} setF={setF} tg={tg} loadTG={loadTG} />
+      <AnalyticsSection f={f} setF={setF} />
     </div>
   )
 }
@@ -211,6 +212,25 @@ function TelegramSection({ f, setF, tg, loadTG }: { f: Row; setF: (f: Row) => vo
         <li>在每个群里随便发一条消息，回来点「刷新」就能看到群组</li>
         <li>社区群聊 → 群设置 → 「互通 Telegram 群组」选择对应的群</li>
       </ol>
+    </Section>
+  )
+}
+
+// ---------- 访问统计 ----------
+function AnalyticsSection({ f, setF }: { f: Row; setF: (f: Row) => void }) {
+  const days = f.pv_retention_days || '365'
+  const [v, setV] = React.useState(days)
+  React.useEffect(() => setV(days), [days])
+  const save = async () => {
+    const n = parseInt(v)
+    if (!(n >= 30 && n <= 3650)) return toast.error('请填 30 到 3650 之间的天数')
+    try { setF(await api('PUT', '/api/settings', { pv_retention_days: String(n) })); toast.success('已保存') } catch (e) { toast.error(errMsg(e)) }
+  }
+  return (
+    <Section id="analytics" icon={<BarChart3 />} title="访问统计" summary={`浏览记录保留 ${days} 天`}>
+      <Field label="浏览记录保留天数" hint="访问统计根据浏览记录计算，超过天数的记录每小时自动清理。想看去年同期对比就保留 400 天以上；访问量很大时可以调小，减少磁盘占用。">
+        <div className="flex gap-2"><Input type="number" min={30} max={3650} className="w-40" value={v} onChange={e => setV(e.target.value)} /><Button onClick={save}>保存</Button></div>
+      </Field>
     </Section>
   )
 }

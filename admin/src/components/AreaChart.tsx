@@ -4,7 +4,7 @@ export interface Point { label: string; value: number; extra?: string }
 
 // 一组数据的面积图：一条线、一个纵轴；悬停显示十字线和数值。
 // 颜色用 --chart（浅色 / 深色各一套，已校验对比度）；文字一律用正文颜色。
-export default function AreaChart({ data, height = 280, unit = '', name }: { data: Point[]; height?: number; unit?: string; name: string }) {
+export default function AreaChart({ data, height = 280, unit = '', name, fmtLabel = (l: string) => l.slice(5) }: { data: Point[]; height?: number; unit?: string; name: string; fmtLabel?: (l: string) => string }) {
   const wrap = React.useRef<HTMLDivElement>(null)
   const [w, setW] = React.useState(800)
   const [hover, setHover] = React.useState<number | null>(null)
@@ -53,7 +53,7 @@ export default function AreaChart({ data, height = 280, unit = '', name }: { dat
           </g>
         ))}
         {data.map((d, i) => (i % step === 0 || i === data.length - 1) && (data.length - 1 - i >= step / 2 || i === data.length - 1) ? (
-          <text key={d.label} x={x(i)} y={height - 8} textAnchor="middle" fontSize="11" fill="var(--faint)">{d.label.slice(5)}</text>
+          <text key={d.label} x={x(i)} y={height - 8} textAnchor="middle" fontSize="11" fill="var(--faint)">{fmtLabel(d.label)}</text>
         ) : null)}
         <path d={area} fill={`url(#${gid})`} />
         <path d={line} fill="none" stroke="var(--chart)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />

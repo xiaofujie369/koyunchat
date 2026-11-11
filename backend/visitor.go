@@ -276,8 +276,11 @@ func recordPage(siteID int64, vid, u, title string) {
 	}
 	var lastURL string
 	db.QueryRow(`SELECT url FROM page_views WHERE visitor_id=? ORDER BY id DESC LIMIT 1`, vid).Scan(&lastURL)
+	// 每条浏览记录保存当时的 IP 和地区，访问统计按它统计（访客换了网络也能分开算）
+	ip, country, region, city := hub.visitorGeo(vid)
 	if lastURL != u {
-		exec(`INSERT INTO page_views(visitor_id,site_id,url,title,ts) VALUES(?,?,?,?,?)`, vid, siteID, u, title, now())
+		exec(`INSERT INTO page_views(visitor_id,site_id,url,title,ts,ip,country,region,city) VALUES(?,?,?,?,?,?,?,?,?)`,
+			vid, siteID, u, title, now(), ip, country, region, city)
 	}
 	hub.updateVisitor(vid, func(v *LiveVisitor) {
 		if v.URL != u {

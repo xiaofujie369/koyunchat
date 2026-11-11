@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { NavLink, useLocation } from 'react-router'
-import { Blocks, Clock, Globe, LayoutDashboard, LogOut, Menu, MessageCircle, MessagesSquare, Monitor, Radio, Settings, User, Users, Zap } from 'lucide-react'
+import { BarChart3, Blocks, Clock, Globe, LayoutDashboard, LogOut, Menu, MessageCircle, MessagesSquare, Monitor, Radio, Settings, User, Users, Zap } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { Avatar } from '@/components/common'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/visitors', label: '实时访客', icon: Radio, count: 'live' },
   { to: '/inbox', label: '会话', icon: MessagesSquare, count: 'conv' },
   { to: '/history', label: '访客记录', icon: Clock },
+  { to: '/analytics', label: '访问统计', icon: BarChart3 },
   { grp: '办公' },
   { to: '/team', label: '团队协作', icon: Users, count: 'team' },
   { to: '/community', label: '社区群聊', icon: Globe },
@@ -23,7 +24,7 @@ const NAV = [
 ] as const
 
 export const TITLES: Record<string, string> = {
-  dashboard: '仪表盘', visitors: '实时访客', inbox: '会话', history: '访客记录', team: '团队协作', community: '社区群聊',
+  dashboard: '仪表盘', visitors: '实时访客', inbox: '会话', history: '访客记录', analytics: '访问统计', team: '团队协作', community: '社区群聊',
   canned: '快捷回复', sites: '站点管理', agents: '客服成员', plugins: '插件管理', settings: '系统设置', profile: '个人设置',
 }
 

@@ -1,12 +1,13 @@
 import * as React from 'react'
 import { BellDot, Bot, Inbox, MessageSquareText, MessagesSquare, Smile, TrendingDown, TrendingUp, UserCheck, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardBody, CardHeader, Empty } from '@/components/ui/card'
+import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/input'
 import { Table, Td, Th, Tr } from '@/components/ui/table'
 import AreaChart from '@/components/AreaChart'
+import { BarList } from '@/components/Charts'
 import { Avatar } from '@/components/common'
 import { useStore } from '@/lib/store'
 import { api, errMsg } from '@/lib/api'
@@ -49,24 +50,6 @@ function fmtMs(ms: number) {
   if (s < 60) return s + ' 秒'
   if (s < 3600) return Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒'
   return (s / 3600).toFixed(1) + ' 小时'
-}
-
-// 排行条：单一颜色表示多少，数字写在条旁边
-function BarList({ rows, empty }: { rows: Row[]; empty: string }) {
-  const max = Math.max(1, ...rows.map(r => r.n))
-  const total = rows.reduce((a, r) => a + r.n, 0) || 1
-  if (!rows.length || !rows.some(r => r.n)) return <Empty className="py-6">{empty}</Empty>
-  return (
-    <div className="space-y-2.5">
-      {rows.map(r => (
-        <div key={r.name} className="flex items-center gap-3 text-[13px]">
-          <span className="w-24 shrink-0 truncate" title={r.name}>{r.name}</span>
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-chart" style={{ width: (r.n / max) * 100 + '%' }} /></div>
-          <span className="w-20 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{r.n}（{Math.round((r.n / total) * 100)}%）</span>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 export default function Dashboard() {

@@ -314,8 +314,37 @@ func listVisitors(w http.ResponseWriter, r *http.Request, u *User) {
 		where = "(name LIKE ? OR email LIKE ? OR ip LIKE ? OR ext LIKE ? OR id=?)"
 		args = append(args, like, like, like, like, s)
 	}
+	// 访客记录筛选：最后访问时间、站点、国家、地区、IP（访问统计页点进来时也用）
+	if v, _ := strconv.ParseInt(q.Get("from"), 10, 64); v > 0 {
+		where += " AND last_seen>=?"
+		args = append(args, v)
+	}
+	if v, _ := strconv.ParseInt(q.Get("to"), 10, 64); v > 0 {
+		where += " AND last_seen<?"
+		args = append(args, v)
+	}
+	if v, _ := strconv.ParseInt(q.Get("site"), 10, 64); v > 0 {
+		where += " AND site_id=?"
+		args = append(args, v)
+	}
+	if v := q.Get("country"); v != "" {
+		if v == "未知" {
+			where += " AND country=''"
+		} else {
+			where += " AND country=?"
+			args = append(args, v)
+		}
+	}
+	if v := q.Get("region"); v != "" {
+		where += " AND region=?"
+		args = append(args, v)
+	}
+	if v := q.Get("ip"); v != "" {
+		where += " AND ip=?"
+		args = append(args, v)
+	}
 	rs, err := queryMaps(`SELECT id,site_id,name,email,ip,country,region,city,browser,os,device,visits,first_seen,last_seen,blocked,ext
-		FROM visitors WHERE `+where+` ORDER BY last_seen DESC LIMIT 200`, args...)
+		FROM visitors WHERE `+where+` ORDER BY last_seen DESC LIMIT 500`, args...)
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -486,7 +515,7 @@ func deleteCanned(w http.ResponseWriter, r *http.Request, u *User) {
 
 // ---- settings ----
 
-var settingKeys = []string{"ai_base_url", "ai_model", "ai_effort", "ai_api_key", "ai_provider", "brand_name", "tg_bot_token", "tg_support_chat_id", "console_url", "sound_default"}
+var settingKeys = []string{"ai_base_url", "ai_model", "ai_effort", "ai_api_key", "ai_provider", "brand_name", "tg_bot_token", "tg_support_chat_id", "console_url", "sound_default", "pv_retention_days"}
 
 var secretKeys = map[string]string{"ai_api_key": "ai_key_hint", "tg_bot_token": "tg_token_hint"}
 

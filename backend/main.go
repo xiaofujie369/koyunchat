@@ -46,6 +46,9 @@ func main() {
 	if err := initPlugins(); err != nil {
 		log.Fatal(err)
 	}
+	if err := initAnalytics(); err != nil {
+		log.Fatal(err)
+	}
 	secretKey = loadSecret()
 	adminPath = getSetting("admin_path", "")
 	if adminPath == "" {
@@ -92,6 +95,7 @@ func registerRoutes(mux *http.ServeMux) {
 	registerSoundRoutes(mux)
 	registerPluginRoutes(mux)
 	registerStatsRoutes(mux)
+	registerAnalyticsRoutes(mux)
 	mux.HandleFunc("GET /api/telegram/status", admin(tgStatusHandler))
 	web := webSub()
 	static := http.FileServer(http.FS(web))
@@ -327,8 +331,8 @@ func randToken(n int) string {
 func housekeeping() {
 	for {
 		db.Exec(`DELETE FROM sessions WHERE expires_at < ?`, now())
-		// keep page view history bounded: 90 days
-		db.Exec(`DELETE FROM page_views WHERE ts < ?`, now()-90*24*3600*1000)
+		// 浏览记录保留天数（系统设置 → 访问统计，默认 365 天）
+		db.Exec(`DELETE FROM page_views WHERE ts < ?`, now()-int64(pvRetentionDays())*24*3600*1000)
 		time.Sleep(time.Hour)
 	}
 }

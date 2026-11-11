@@ -9,6 +9,7 @@ import Dashboard from '@/pages/Dashboard'
 import Visitors from '@/pages/Visitors'
 import Inbox from '@/pages/Inbox'
 import History from '@/pages/History'
+import Analytics from '@/pages/Analytics'
 import Team from '@/pages/Team'
 import Community from '@/pages/Community'
 import Canned from '@/pages/Canned'
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/visitors" element={<Visitors />} />
           <Route path="/inbox/:id?" element={<Inbox />} />
           <Route path="/history" element={<History />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/team/:id?" element={<Team />} />
           <Route path="/community/:id?" element={<Community />} />
           <Route path="/canned" element={<Canned />} />
