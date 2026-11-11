@@ -1,0 +1,19 @@
+# 运行数据、数据库、上传文件、项目资料（含密码）——绝不上传
+data/
+data-dev/
+*.db
+*.db-shm
+*.db-wal
+*.mmdb
+uploads/
+# 编译产物
+/koyunchat
+/koyunchat.new
+/koyunchat.prev
+# 本机服务器配置
+build.env
+*.env
+!build.env.example
+# 其他本地目录
+xbord_chanjian/
+*.log
